@@ -1,0 +1,53 @@
+{
+  "name": "openclaw-knobase",
+  "version": "1.0.0",
+  "description": "Official OpenClaw skill for Knobase integration - connect your agent to Knobase workspaces",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "knobase-auth": "./bin/auth.js",
+    "knobase-connect": "./bin/connect.js",
+    "knobase-status": "./bin/status.js",
+    "openclaw-knobase": "./bin/cli.js"
+  },
+  "scripts": {
+    "setup": "node bin/setup.js",
+    "auth": "node bin/auth.js",
+    "connect": "node bin/connect.js",
+    "status": "node bin/status.js",
+    "webhook": "node bin/webhook.js",
+    "test": "node --test"
+  },
+  "keywords": ["openclaw", "knobase", "skill", "agent", "integration"],
+  "author": "Knobase",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1",
+    "inquirer": "^9.2.12",
+    "chalk": "^5.3.0",
+    "ora": "^7.0.1",
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "openclaw": {
+    "skillName": "knobase",
+    "displayName": "Knobase Integration",
+    "description": "Connect OpenClaw to Knobase workspaces for @mentions and notifications",
+    "version": "1.0.0",
+    "author": "Knobase",
+    "minOpenClawVersion": "0.1.0",
+    "commands": [
+      "knobase auth",
+      "knobase connect",
+      "knobase status",
+      "knobase webhook start"
+    ],
+    "config": {
+      "required": ["KNOBASE_API_KEY", "KNOBASE_WORKSPACE_ID"],
+      "optional": ["KNOBASE_WEBHOOK_SECRET", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]
+    }
+  }
+}

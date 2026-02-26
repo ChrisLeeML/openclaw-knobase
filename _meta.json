@@ -1,0 +1,100 @@
+{
+  "name": "knobase",
+  "displayName": "Knobase Integration",
+  "description": "Connect OpenClaw to Knobase workspaces for @mentions, notifications, and bidirectional context sync",
+  "version": "1.0.0",
+  "author": "Knobase",
+  "license": "MIT",
+  "homepage": "https://github.com/Knobase/openclaw-knobase",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Knobase/openclaw-knobase.git"
+  },
+  "minOpenClawVersion": "0.1.0",
+  "keywords": [
+    "knobase",
+    "notifications",
+    "mentions",
+    "workspace",
+    "collaboration"
+  ],
+  "commands": {
+    "auth": {
+      "description": "Authenticate and register agent with Knobase",
+      "usage": "openclaw knobase auth",
+      "script": "bin/auth.js"
+    },
+    "connect": {
+      "description": "Connect to a Knobase workspace",
+      "usage": "openclaw knobase connect",
+      "script": "bin/connect.js"
+    },
+    "status": {
+      "description": "Check connection status",
+      "usage": "openclaw knobase status",
+      "script": "bin/status.js"
+    },
+    "webhook": {
+      "description": "Start/stop webhook server",
+      "usage": "openclaw knobase webhook [start|stop]",
+      "script": "bin/webhook.js"
+    }
+  },
+  "config": {
+    "required": [
+      {
+        "key": "KNOBASE_API_KEY",
+        "description": "Your Knobase API key",
+        "prompt": "Enter your Knobase API Key"
+      },
+      {
+        "key": "AGENT_ID",
+        "description": "Unique identifier for this agent",
+        "generated": true
+      }
+    ],
+    "optional": [
+      {
+        "key": "KNOBASE_WORKSPACE_ID",
+        "description": "Knobase workspace to connect to"
+      },
+      {
+        "key": "KNOBASE_WEBHOOK_SECRET",
+        "description": "Secret for verifying webhooks"
+      },
+      {
+        "key": "TELEGRAM_BOT_TOKEN",
+        "description": "Telegram bot token for notifications"
+      },
+      {
+        "key": "TELEGRAM_CHAT_ID",
+        "description": "Telegram chat ID for notifications"
+      }
+    ]
+  },
+  "capabilities": [
+    "mention_handler",
+    "notification_receiver",
+    "context_sync",
+    "workspace_query"
+  ],
+  "hooks": {
+    "postInstall": "bin/setup.js",
+    "preUninstall": null
+  },
+  "integration": {
+    "type": "webhook",
+    "endpoints": [
+      {
+        "path": "/webhook/knobase",
+        "method": "POST",
+        "description": "Receives webhooks from Knobase"
+      }
+    ],
+    "events": [
+      "mention",
+      "notification",
+      "system"
+    ]
+  }
+}
