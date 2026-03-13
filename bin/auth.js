@@ -16,10 +16,13 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createInterface } from 'readline';
+import { spawn } from 'child_process';
 import crypto from 'crypto';
 import chalk from 'chalk';
 import ora from 'ora';
 import fetch from 'node-fetch';
+import open from 'open';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.resolve(__dirname, '..');
@@ -142,14 +145,22 @@ async function authenticateWithDeviceFlow() {
   }
 
   const { device_code, user_code, verification_uri, expires_in } = deviceData;
-  const verificationUrl = verification_uri || `${KNOBASE_BASE_URL}/activate`;
+  const verificationUrl = `${KNOBASE_BASE_URL}/device?code=${user_code}`;
 
   console.log('');
-  console.log(chalk.white.bold('  Open this URL in your browser:'));
-  console.log(chalk.cyan.bold(`  ${verificationUrl}\n`));
-  console.log(chalk.white.bold('  Enter this code:'));
+  console.log(chalk.white.bold('  Your code:'));
   console.log(chalk.yellow.bold(`  ${user_code}\n`));
   console.log(chalk.gray(`  Code expires in ${Math.floor(expires_in / 60)} minutes.\n`));
+
+  console.log(chalk.white('  Opening browser to authorize...'));
+  try {
+    await open(verificationUrl);
+    console.log(chalk.green(`  ✓ Opened ${verificationUrl}\n`));
+  } catch {
+    console.log(chalk.gray(`  Could not open browser automatically.`));
+    console.log(chalk.white.bold('  Open this URL manually:'));
+    console.log(chalk.cyan.bold(`  ${verificationUrl}\n`));
+  }
 
   const tokenSpinner = ora('Waiting for authorization...').start();
   let tokenData;
@@ -188,7 +199,38 @@ async function authenticateWithDeviceFlow() {
   console.log(chalk.green.bold('\n✅ Authentication successful!\n'));
   console.log(chalk.white('  Agent ID:    ') + chalk.cyan(config.AGENT_ID));
   console.log(chalk.white('  Workspace:   ') + chalk.cyan(workspace_id));
-  console.log(chalk.gray('\n  Run `openclaw knobase status` to verify your connection.\n'));
+
+  console.log(chalk.white.bold('\n  Try ') + chalk.cyan.bold('@openclaw') + chalk.white.bold(' in your Knobase document!\n'));
+  console.log(chalk.gray('  Example commands:'));
+  console.log(chalk.gray('    @openclaw summarize this page'));
+  console.log(chalk.gray('    @openclaw find action items'));
+  console.log(chalk.gray('    @openclaw draft a reply\n'));
+
+  await promptStartWebhook();
+}
+
+async function promptStartWebhook() {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise((resolve) => {
+    rl.question(chalk.white.bold('  Start webhook server now? [Y/n] '), resolve);
+  });
+  rl.close();
+
+  const shouldStart = !answer || answer.trim().toLowerCase() !== 'n';
+  if (shouldStart) {
+    console.log('');
+    const webhookPath = path.join(__dirname, 'webhook.js');
+    const child = spawn(process.execPath, [webhookPath, 'start'], {
+      stdio: 'inherit',
+      cwd: SKILL_DIR,
+    });
+    child.on('error', (err) => {
+      console.error(chalk.red(`\n  Failed to start webhook server: ${err.message}`));
+      console.log(chalk.gray('  You can start it manually with: openclaw knobase webhook start\n'));
+    });
+  } else {
+    console.log(chalk.gray('\n  You can start the webhook later with: openclaw knobase webhook start\n'));
+  }
 }
 
 async function authenticateWithApiKey(apiKey) {

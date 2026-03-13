@@ -34,7 +34,7 @@ if (!command || command === '--help' || command === '-h') {
   console.log(chalk.gray('  connect    Connect to a Knobase workspace'));
   console.log(chalk.gray('  status     Check connection status'));
   console.log(chalk.gray('  webhook    Start webhook server'));
-  console.log(chalk.gray('  setup      Run setup/installation'));
+  console.log(chalk.gray('  setup      One-command auth + webhook start (--auto, --doc <url>)'));
   console.log(chalk.gray('  --help     Show this help message\n'));
   process.exit(0);
 }
