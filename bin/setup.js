@@ -323,9 +323,45 @@ async function main() {
 
   // Step 3: Start webhook
   await promptOrAutoStartWebhook(flags.auto);
+
+  // Step 4: Configure heartbeat
+  await configureHeartbeat();
 }
 
 main().catch((err) => {
   console.error(chalk.red(err.message));
   process.exit(1);
 });
+
+// ── Heartbeat Auto-Configuration ─────────────────────────────
+
+async function configureHeartbeat() {
+  const os = await import('os');
+  const fs = await import('fs/promises');
+  
+  const heartbeatPath = path.join(os.homedir(), '.openclaw', 'workspace', 'HEARTBEAT.md');
+  const heartbeatCmd = `node ${SKILL_DIR}/bin/heartbeat-check.js`;
+  
+  try {
+    let content = '';
+    try {
+      content = await fs.readFile(heartbeatPath, 'utf8');
+    } catch {
+      // File doesn't exist, will create
+    }
+    
+    // Check if already configured
+    if (content.includes('heartbeat-check.js')) {
+      console.log(chalk.gray('  ✓ Heartbeat already configured'));
+      return;
+    }
+    
+    // Add the heartbeat check
+    const newContent = content.trimEnd() + '\n\n## Knobase Webhook Auto-Restart\n- Check and restart webhook if needed: `' + heartbeatCmd + '`\n';
+    
+    await fs.writeFile(heartbeatPath, newContent, 'utf8');
+    console.log(chalk.green('  ✓ Configured heartbeat for webhook auto-restart'));
+  } catch (err) {
+    console.log(chalk.yellow('  ⚠ Could not configure heartbeat: ' + err.message));
+  }
+}
