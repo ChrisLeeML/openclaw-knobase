@@ -1,140 +1,177 @@
 #!/usr/bin/env node
 
 /**
- * Knobase Workspace Connector
+ * Knobase One-Click Agent Connection
  * 
- * Usage: openclaw knobase connect
+ * Usage: openclaw knobase connect --code <user_code>
+ * 
+ * Implements a streamlined connection flow:
+ * 1. Takes a user_code from the --code flag
+ * 2. Exchanges it for a token via the device token endpoint
+ * 3. Connects the agent to the workspace
+ * 4. Saves credentials and starts the webhook server
  */
 
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
+import crypto from 'crypto';
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import ora from 'ora';
+import fetch from 'node-fetch';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.resolve(__dirname, '..');
 const ENV_FILE = path.join(SKILL_DIR, '.env');
 
-async function loadConfig() {
-  try {
-    const content = await fs.readFile(ENV_FILE, 'utf8');
-    const config = {};
-    content.split('\n').forEach(line => {
-      const [key, ...valueParts] = line.split('=');
-      if (key && valueParts.length > 0) {
-        config[key.trim()] = valueParts.join('=').trim();
-      }
-    });
-    return config;
-  } catch {
-    return null;
+const KNOBASE_BASE_URL = 'https://app.knobase.com';
+const DEVICE_TOKEN_URL = `${KNOBASE_BASE_URL}/api/oauth/device/token`;
+const AGENT_CONNECT_URL = `${KNOBASE_BASE_URL}/api/v1/agents/connect`;
+
+function parseArgs(argv) {
+  const args = argv.slice(2);
+  const flags = { code: null };
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--code' && args[i + 1]) {
+      flags.code = args[i + 1];
+      i++;
+    }
   }
+  return flags;
+}
+
+function generateAgentId() {
+  const uuid = crypto.randomUUID();
+  return `knobase_agent_${uuid}`;
 }
 
 async function saveConfig(config) {
   const envContent = Object.entries(config)
     .map(([key, value]) => `${key}=${value}`)
     .join('\n');
-  
+
   await fs.writeFile(ENV_FILE, envContent, { mode: 0o600 });
+  console.log(chalk.green('\n✓ Configuration saved to .env'));
 }
 
-async function listWorkspaces(apiKey, endpoint) {
+async function exchangeCodeForToken(userCode) {
+  const response = await fetch(DEVICE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      device_code: userCode,
+      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Token exchange failed (${response.status}): ${body}`);
+  }
+
+  return await response.json();
+}
+
+async function connectAgent(deviceCode) {
+  const response = await fetch(AGENT_CONNECT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device_code: deviceCode }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Failed to connect agent (${response.status}): ${body}`);
+  }
+
+  return await response.json();
+}
+
+function launchWebhook() {
+  console.log('');
+  const webhookPath = path.join(__dirname, 'webhook.js');
+  const child = spawn(process.execPath, [webhookPath, 'start'], {
+    stdio: 'inherit',
+    cwd: SKILL_DIR,
+  });
+  child.on('error', (err) => {
+    console.error(chalk.red(`\n  Failed to start webhook server: ${err.message}`));
+    console.log(chalk.gray('  You can start it manually with: openclaw knobase webhook start\n'));
+  });
+}
+
+async function main() {
+  const flags = parseArgs(process.argv);
+
+  console.log(chalk.blue.bold('\n⚡ Knobase Quick Connect\n'));
+
+  if (!flags.code) {
+    console.error(chalk.red('  Error: --code flag is required.\n'));
+    console.log(chalk.white('  Usage:'));
+    console.log(chalk.gray('    openclaw knobase connect --code <user_code>\n'));
+    console.log(chalk.gray('  Get your code from the Knobase app or run:'));
+    console.log(chalk.gray('    openclaw knobase auth\n'));
+    process.exit(1);
+  }
+
+  const userCode = flags.code;
+  console.log(chalk.white('  Code: ') + chalk.yellow.bold(userCode) + '\n');
+
+  // Step 1: Exchange user_code for token
+  const tokenSpinner = ora('Exchanging code for token...').start();
+  let tokenData;
   try {
-    const response = await fetch(`${endpoint}/v1/workspaces`, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch workspaces');
-    }
-    
-    return await response.json();
-  } catch (error) {
-    throw new Error(`Cannot list workspaces: ${error.message}`);
+    tokenData = await exchangeCodeForToken(userCode);
+    tokenSpinner.succeed('Token received');
+  } catch (err) {
+    tokenSpinner.fail('Token exchange failed');
+    console.error(chalk.red(`\n  ${err.message}\n`));
+    process.exit(1);
   }
-}
 
-async function connectWorkspace() {
-  console.log(chalk.blue.bold('🔗 Connect to Knobase Workspace\n'));
-  
-  const config = await loadConfig();
-  
-  if (!config || !config.KNOBASE_API_KEY) {
-    console.log(chalk.red('❌ Not authenticated'));
-    console.log(chalk.gray('Run: openclaw knobase auth'));
-    return;
-  }
-  
-  const spinner = ora('Fetching workspaces...').start();
-  
+  // Step 2: Connect agent to workspace
+  const connectSpinner = ora('Connecting agent to workspace...').start();
+  let agentData;
   try {
-    const endpoint = config.KNOBASE_API_ENDPOINT || 'https://api.knobase.ai';
-    const workspaces = await listWorkspaces(config.KNOBASE_API_KEY, endpoint);
-    spinner.succeed('Workspaces loaded');
-    
-    if (!workspaces || workspaces.length === 0) {
-      console.log(chalk.yellow('\nNo workspaces found. Create one in Knobase first.'));
-      return;
-    }
-    
-    const { workspace } = await inquirer.prompt([{
-      type: 'list',
-      name: 'workspace',
-      message: 'Select a workspace:',
-      choices: workspaces.map(w => ({
-        name: `${w.name} (${w.id})`,
-        value: w.id
-      }))
-    }]);
-    
-    // Save workspace ID
-    config.KNOBASE_WORKSPACE_ID = workspace;
-    await saveConfig(config);
-    
-    console.log(chalk.green('\n✅ Connected to workspace!'));
-    console.log(chalk.white('Workspace ID: ') + chalk.cyan(workspace));
-    
-    // Register webhook if we have a public URL
-    if (config.WEBHOOK_URL) {
-      console.log(chalk.gray('\nRegistering webhook with Knobase...'));
-      // TODO: Implement webhook registration API call
-    }
-    
-    console.log(chalk.gray('\nYou can now receive @claw mentions!'));
-    console.log(chalk.gray('Start webhook server: openclaw knobase webhook start\n'));
-    
-  } catch (error) {
-    spinner.fail('Failed to connect');
-    console.error(chalk.red(error.message));
-    
-    // Manual entry fallback
-    const { manual } = await inquirer.prompt([{
-      type: 'confirm',
-      name: 'manual',
-      message: 'Would you like to enter the workspace ID manually?',
-      default: true
-    }]);
-    
-    if (manual) {
-      const { workspaceId } = await inquirer.prompt([{
-        type: 'input',
-        name: 'workspaceId',
-        message: 'Enter Workspace ID:',
-        validate: (input) => input.length > 0 || 'Workspace ID is required'
-      }]);
-      
-      config.KNOBASE_WORKSPACE_ID = workspaceId;
-      await saveConfig(config);
-      
-      console.log(chalk.green('\n✅ Workspace ID saved!'));
-    }
+    agentData = await connectAgent(userCode);
+    connectSpinner.succeed('Agent connected');
+  } catch (err) {
+    connectSpinner.fail('Failed to connect agent');
+    console.error(chalk.red(`\n  ${err.message}\n`));
+    process.exit(1);
   }
+
+  // Step 3: Save config
+  const { agent_id, api_key, workspace_id } = agentData;
+
+  const config = {
+    AGENT_ID: agent_id || generateAgentId(),
+    KNOBASE_API_KEY: api_key,
+    KNOBASE_WORKSPACE_ID: workspace_id,
+    KNOBASE_API_ENDPOINT: KNOBASE_BASE_URL,
+    AUTHENTICATED_AT: new Date().toISOString(),
+  };
+
+  await saveConfig(config);
+
+  // Step 4: Success message
+  console.log(chalk.green.bold('\n✅ Connected successfully!\n'));
+  console.log(chalk.white('  Agent ID:    ') + chalk.cyan(config.AGENT_ID));
+  console.log(chalk.white('  Workspace:   ') + chalk.cyan(workspace_id));
+
+  console.log(chalk.white.bold('\n  Try ') + chalk.cyan.bold('@openclaw') + chalk.white.bold(' in your Knobase document!\n'));
+  console.log(chalk.gray('  Example commands:'));
+  console.log(chalk.gray('    @openclaw summarize this page'));
+  console.log(chalk.gray('    @openclaw find action items'));
+  console.log(chalk.gray('    @openclaw draft a reply\n'));
+
+  // Step 5: Auto-start webhook server
+  console.log(chalk.gray('  Starting webhook server...\n'));
+  launchWebhook();
 }
 
-connectWorkspace().catch(console.error);
+main().catch((err) => {
+  console.error(chalk.red(err.message));
+  process.exit(1);
+});
