@@ -3,10 +3,10 @@
 /**
  * Knobase One-Click Agent Connection
  * 
- * Usage: openclaw knobase connect --code <user_code> [--name <agent_name>]
+ * Usage: openclaw knobase connect --device-code <device_code> [--name <agent_name>]
  * 
  * Implements a streamlined connection flow:
- * 1. Takes a user_code from the --code flag
+ * 1. Takes a device_code (UUID) from the --device-code flag
  * 2. Exchanges it for a token via the device token endpoint
  * 3. Connects the agent to the workspace
  * 4. Saves credentials and starts the webhook server
@@ -31,10 +31,10 @@ const AGENT_CONNECT_URL = `${KNOBASE_BASE_URL}/api/v1/agents/connect`;
 
 function parseArgs(argv) {
   const args = argv.slice(2);
-  const flags = { code: null, name: null };
+  const flags = { deviceCode: null, name: null };
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--code' && args[i + 1]) {
-      flags.code = args[i + 1];
+    if (args[i] === '--device-code' && args[i + 1]) {
+      flags.deviceCode = args[i + 1];
       i++;
     } else if (args[i] === '--name' && args[i + 1]) {
       flags.name = args[i + 1];
@@ -58,12 +58,12 @@ async function saveConfig(config) {
   console.log(chalk.green('\n✓ Configuration saved to .env'));
 }
 
-async function exchangeCodeForToken(userCode) {
+async function exchangeCodeForToken(deviceCode) {
   const response = await fetch(DEVICE_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      device_code: userCode,
+      device_code: deviceCode,
       grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
     }),
   });
@@ -109,23 +109,23 @@ async function main() {
 
   console.log(chalk.blue.bold('\n⚡ Knobase Quick Connect\n'));
 
-  if (!flags.code) {
-    console.error(chalk.red('  Error: --code flag is required.\n'));
+  if (!flags.deviceCode) {
+    console.error(chalk.red('  Error: --device-code flag is required.\n'));
     console.log(chalk.white('  Usage:'));
-    console.log(chalk.gray('    openclaw knobase connect --code <user_code> [--name <agent_name>]\n'));
-    console.log(chalk.gray('  Get your code from the Knobase app or run:'));
+    console.log(chalk.gray('    openclaw knobase connect --device-code <device_code> [--name <agent_name>]\n'));
+    console.log(chalk.gray('  Get your device code from the Knobase app or run:'));
     console.log(chalk.gray('    openclaw knobase auth\n'));
     process.exit(1);
   }
 
-  const userCode = flags.code;
-  console.log(chalk.white('  Code: ') + chalk.yellow.bold(userCode) + '\n');
+  const deviceCode = flags.deviceCode;
+  console.log(chalk.white('  Device Code: ') + chalk.yellow.bold(deviceCode) + '\n');
 
-  // Step 1: Exchange user_code for token
-  const tokenSpinner = ora('Exchanging code for token...').start();
+  // Step 1: Exchange device_code for token
+  const tokenSpinner = ora('Exchanging device code for token...').start();
   let tokenData;
   try {
-    tokenData = await exchangeCodeForToken(userCode);
+    tokenData = await exchangeCodeForToken(deviceCode);
     tokenSpinner.succeed('Token received');
   } catch (err) {
     tokenSpinner.fail('Token exchange failed');
@@ -137,7 +137,7 @@ async function main() {
   const connectSpinner = ora('Connecting agent to workspace...').start();
   let agentData;
   try {
-    agentData = await connectAgent(userCode);
+    agentData = await connectAgent(deviceCode);
     connectSpinner.succeed('Agent connected');
   } catch (err) {
     connectSpinner.fail('Failed to connect agent');
