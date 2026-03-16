@@ -3,7 +3,7 @@
 /**
  * Knobase One-Click Agent Connection
  * 
- * Usage: openclaw knobase connect --code <user_code>
+ * Usage: openclaw knobase connect --code <user_code> [--name <agent_name>]
  * 
  * Implements a streamlined connection flow:
  * 1. Takes a user_code from the --code flag
@@ -31,10 +31,13 @@ const AGENT_CONNECT_URL = `${KNOBASE_BASE_URL}/api/v1/agents/connect`;
 
 function parseArgs(argv) {
   const args = argv.slice(2);
-  const flags = { code: null };
+  const flags = { code: null, name: null };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--code' && args[i + 1]) {
       flags.code = args[i + 1];
+      i++;
+    } else if (args[i] === '--name' && args[i + 1]) {
+      flags.name = args[i + 1];
       i++;
     }
   }
@@ -109,7 +112,7 @@ async function main() {
   if (!flags.code) {
     console.error(chalk.red('  Error: --code flag is required.\n'));
     console.log(chalk.white('  Usage:'));
-    console.log(chalk.gray('    openclaw knobase connect --code <user_code>\n'));
+    console.log(chalk.gray('    openclaw knobase connect --code <user_code> [--name <agent_name>]\n'));
     console.log(chalk.gray('  Get your code from the Knobase app or run:'));
     console.log(chalk.gray('    openclaw knobase auth\n'));
     process.exit(1);
@@ -145,8 +148,11 @@ async function main() {
   // Step 3: Save config
   const { agent_id, api_key, workspace_id } = agentData;
 
+  const agentName = flags.name || agentData.name || null;
+
   const config = {
     AGENT_ID: agent_id || generateAgentId(),
+    ...(agentName && { AGENT_NAME: agentName }),
     KNOBASE_API_KEY: api_key,
     KNOBASE_WORKSPACE_ID: workspace_id,
     KNOBASE_API_ENDPOINT: KNOBASE_BASE_URL,
@@ -156,7 +162,13 @@ async function main() {
   await saveConfig(config);
 
   // Step 4: Success message
-  console.log(chalk.green.bold('\n✅ Connected successfully!\n'));
+  const successLabel = agentName
+    ? `\n✅ ${agentName} connected successfully!\n`
+    : '\n✅ Connected successfully!\n';
+  console.log(chalk.green.bold(successLabel));
+  if (agentName) {
+    console.log(chalk.white('  Agent Name:  ') + chalk.cyan.bold(agentName));
+  }
   console.log(chalk.white('  Agent ID:    ') + chalk.cyan(config.AGENT_ID));
   console.log(chalk.white('  Workspace:   ') + chalk.cyan(workspace_id));
 
