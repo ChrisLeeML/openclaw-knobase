@@ -27,9 +27,10 @@ const COMMANDS = {
 };
 
 const AGENTS_SUBCOMMANDS = {
-  'list': { script: 'agents/list.js', desc: 'List all agents in the workspace' },
-  'info': { script: 'agents/info.js', desc: 'Get current agent\'s profile information' },
-  'find': { script: 'agents/find.js', desc: 'Find collaborators by capability or expertise' },
+  'list':   { script: 'agents/list.js',   desc: 'List all agents in the workspace' },
+  'info':   { script: 'agents/info.js',   desc: 'Get current agent\'s profile information' },
+  'find':   { script: 'agents/find.js',   desc: 'Find collaborators by capability or expertise' },
+  'select': { script: 'agents/select.js', desc: 'Interactively select an agent and save to .env' },
 };
 
 const DOCS_SUBCOMMANDS = {
@@ -56,7 +57,7 @@ function showMainHelp() {
   console.log(chalk.gray('  webhook    Start webhook server'));
   console.log(chalk.gray('  setup      One-command auth + webhook start (--auto, --doc <url>)'));
   console.log(chalk.gray('  docs       Manage workspace documents (list, read, search, create, write, delete, export)'));
-  console.log(chalk.gray('  agents     Manage workspace agents (list, info, find)'));
+  console.log(chalk.gray('  agents     Manage workspace agents (list, info, find, select)'));
   console.log(chalk.gray('  workspace  Show workspace information'));
   console.log(chalk.gray('  mention    Create a @mention in a document'));
   console.log(chalk.gray('  --help     Show this help message\n'));
@@ -95,12 +96,14 @@ function showAgentsHelp() {
   console.log(chalk.gray('  list                  List all agents in the workspace'));
   console.log(chalk.gray('  info                  Get current agent\'s profile information'));
   console.log(chalk.gray('  find <query>          Find collaborators by capability or expertise'));
+  console.log(chalk.gray('  select                Interactively select an agent and save to .env'));
   console.log(chalk.gray('  --help                Show this help message\n'));
   console.log(chalk.gray('Examples:'));
   console.log(chalk.gray('  openclaw-knobase agents list'));
   console.log(chalk.gray('  openclaw-knobase agents info'));
   console.log(chalk.gray('  openclaw-knobase agents find "code review"'));
   console.log(chalk.gray('  openclaw-knobase agents find python backend'));
+  console.log(chalk.gray('  openclaw-knobase agents select'));
   process.exit(0);
 }
 
