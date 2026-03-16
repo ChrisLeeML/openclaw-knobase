@@ -51,7 +51,7 @@ function showMainHelp() {
   console.log(chalk.white('Commands:'));
   console.log(chalk.gray('  auth       Authenticate and register agent'));
   console.log(chalk.gray('  configure  Auto-configure (verify key, save .env, register webhook)'));
-  console.log(chalk.gray('  connect    One-click agent connection (--code <user_code>)'));
+  console.log(chalk.gray('  connect    One-click agent connection (--device-code <device_code>)'));
   console.log(chalk.gray('  status     Check connection status'));
   console.log(chalk.gray('  webhook    Start webhook server'));
   console.log(chalk.gray('  setup      One-command auth + webhook start (--auto, --doc <url>)'));

@@ -3,7 +3,7 @@
 /**
  * Knobase One-Click Agent Connection
  * 
- * Usage: openclaw knobase connect --device-code <device_code> [--name <agent_name>]
+ * Usage: openclaw-knobase connect --device-code <device_code> [--name <agent_name>]
  * 
  * Implements a streamlined connection flow:
  * 1. Takes a device_code (UUID) from the --device-code flag
@@ -112,7 +112,7 @@ async function main() {
   if (!flags.deviceCode) {
     console.error(chalk.red('  Error: --device-code flag is required.\n'));
     console.log(chalk.white('  Usage:'));
-    console.log(chalk.gray('    openclaw knobase connect --device-code <device_code> [--name <agent_name>]\n'));
+    console.log(chalk.gray('    openclaw-knobase connect --device-code <device_code> [--name <agent_name>]\n'));
     console.log(chalk.gray('  Get your device code from the Knobase app or run:'));
     console.log(chalk.gray('    openclaw knobase auth\n'));
     process.exit(1);
