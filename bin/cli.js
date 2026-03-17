@@ -284,17 +284,6 @@ function daemonRestart(extraArgs) {
   process.exit(0);
 }
 
-function showDaemonHelp() {
-  console.log(chalk.blue.bold('Knobase Daemon Commands\n'));
-  console.log(chalk.white('Usage: openclaw-knobase daemon <subcommand>\n'));
-  console.log(chalk.white('Subcommands:'));
-  console.log(chalk.gray('  install [--uninstall]   Install or uninstall daemon as system service'));
-  console.log(chalk.gray('  --help                  Show this help message\n'));
-  console.log(chalk.gray('Examples:'));
-  console.log(chalk.gray('  openclaw-knobase daemon install'));
-  console.log(chalk.gray('  openclaw-knobase daemon install --uninstall'));
-  process.exit(0);
-}
 
 if (!command || command === '--help' || command === '-h') {
   showMainHelp();
@@ -305,20 +294,6 @@ if (!(command in COMMANDS)) {
   console.log(chalk.gray('Run "openclaw-knobase --help" for available commands'));
   process.exit(1);
 }
-
-if (command === 'docs') {
-  const subcommand = args[0];
-  const subArgs = args.slice(1);
-
-  if (!subcommand || subcommand === '--help' || subcommand === '-h') {
-    showDocsHelp();
-  }
-
-  if (!(subcommand in DOCS_SUBCOMMANDS)) {
-    console.error(chalk.red(`Unknown docs subcommand: ${subcommand}`));
-    console.log(chalk.gray('Run "openclaw-knobase docs --help" for available subcommands'));
-    process.exit(1);
-  }
 
   const scriptPath = path.join(__dirname, DOCS_SUBCOMMANDS[subcommand].script);
   const child = spawn('node', [scriptPath, ...subArgs], {
